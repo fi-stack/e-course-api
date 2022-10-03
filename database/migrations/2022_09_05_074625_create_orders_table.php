@@ -18,6 +18,7 @@ class CreateOrdersTable extends Migration
             $table->text('service');
             $table->foreignId('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->enum('payment_type', ['bri', 'bca']);
+            $table->bigInteger('expired_at');
             $table->string('image');
             $table->enum('status', ['waiting', 'wait', 'success', 'failed']);
             $table->timestamps();

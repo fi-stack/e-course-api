@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Molecule;
 use App\Models\Subscriber;
+use App\Models\UserAtom;
 use App\Models\UserCourse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -26,19 +27,30 @@ class UserCourseController extends Controller
             }])->where('user_id', $request->user()->id)->get();
 
             foreach ($userCourses as $userCourse) {
-                $molecules = Molecule::select('id')->where('course_id', $userCourse->course_id)->withCount('atoms')->get();
-                $courseAtomsCount = 0;
+                $molecules = Molecule::where('course_id', $userCourse->course_id)->withCount('atoms')->with(['atoms' => function ($query) use ($request) {
+                    $query->select('id', 'molecule_id')->withCount(['userAtoms' => function ($query) use ($request) {
+                        $query->where('user_id', $request->user()->id);
+                    }]);
+                }])->get();
+                $atomsCount = 0;
+                $userAtomsCount = 0;
                 foreach ($molecules as $molecule) {
-                    $courseAtomsCount += $molecule->atoms_count;
+                    $atomsCount += $molecule->atoms_count;
+                    foreach ($molecule->atoms as $atom) {
+                        $userAtomsCount += $atom->user_atoms_count;
+                    }
                 }
                 $userCourse->course->molecules = $molecules;
-                $userCourse->course_atoms_count = $courseAtomsCount;
-                if ($userCourse->progress === $userCourse->course_atoms_count && $userCourse->progress > 0) {
+                $userCourse->atoms_count = $atomsCount;
+                $userCourse->user_atoms_count = $userAtomsCount;
+                $userCourse->total = ($userCourse->user_atoms_count / $userCourse->atoms_count) * 100;
+                if ($userCourse->total === 100) {
                     $userCourse = UserCourse::where('user_id', $request->user()->id)->where('course_id', $userCourse->course_id)->first();
                     $userCourse->update([
                         'is_completed' => true,
                     ]);
                 }
+                $userCourse->total = number_format($userCourse->total, 2) . "%";
             }
         }
 

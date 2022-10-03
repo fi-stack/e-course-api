@@ -13,6 +13,7 @@ class Order extends Model
         'service',
         'user_id',
         'payment_type',
+        'expired_at',
         'image',
         'status'
     ];

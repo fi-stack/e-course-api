@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Mail\OrderMail;
 use App\Models\Order;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -19,8 +20,15 @@ class OrderController extends Controller
         $orders = Order::where('user_id', $request->user()->id)->get();
 
         foreach ($orders as $order) {
-            $order->service = json_decode($order->service);
             $order->image = url(Storage::url('uploads/orders/' . $order->image));
+            $order->service = json_decode($order->service);
+            $discount = ($order->service->discount / 100) * $order->service->price;
+            $order->service->total = $order->service->price - $discount;
+            $order->service->price = rupiah($order->service->price);
+            $order->service->discount = $order->service->discount . '%';
+            $order->service->total = rupiah($order->service->total);
+            $order->left_at = date('H:i:s', strtotime($order->expired_at) - strtotime('now'));
+            $order->expired_at = date('Y-m-d H:i:s', $order->expired_at);
         }
 
         return response()->json([
@@ -34,8 +42,15 @@ class OrderController extends Controller
     {
         $order = Order::where('id', $id)->where('user_id', $request->user()->id)->first();
 
-        $order->service = json_decode($order->service);
         $order->image = url(Storage::url('uploads/orders/' . $order->image));
+        $order->service = json_decode($order->service);
+        $discount = ($order->service->discount / 100) * $order->service->price;
+        $order->service->total = $order->service->price - $discount;
+        $order->service->price = rupiah($order->service->price);
+        $order->service->discount = $order->service->discount . '%';
+        $order->service->total = rupiah($order->service->total);
+        $order->left_at = date('H:i:s', strtotime($order->expired_at) - strtotime('now'));
+        $order->expired_at = date('Y-m-d H:i:s', $order->expired_at);
 
         return response()->json([
             'success' => true,
@@ -47,8 +62,8 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'service' => 'required',
             'user_id' => 'required',
+            'service_id' => 'required',
             'payment_type' => 'required',
         ]);
 
@@ -61,35 +76,40 @@ class OrderController extends Controller
         }
 
         $user = User::where('id', $request->user_id)->first();
+        $service = Service::where('id', $request->service_id)->first();
+        $discount = ($service->discount / 100) * $service->price;
+        $service->total = $service->price - $discount;
+
+        $expiredAt = strtotime('now') + 86400;
+
+        $order = Order::create([
+            'service' => $service,
+            'cart' => $request->cart,
+            'user_id' => $request->user()->id,
+            'payment_type' => $request->payment_type,
+            'expired_at' => $expiredAt,
+            'status' => 'waiting'
+        ]);
+
+        $service->price = rupiah($service->price);
+        $service->discount = $service->discount . '%';
+        $service->total = rupiah($service->total);
+        $service->expired_at = date('Y-m-d H:i:s', $order->expired_at);
 
         $data = [
-            'service' => json_decode($request->service),
+            'service' => $service,
             'user' => $user,
             'payment_type' => $request->payment_type,
+            'expired_at' => date('Y-m-d H:i:s', $expiredAt)
         ];
 
         Mail::to($user->email)->send(new OrderMail($data));
 
-        if (Mail::failures()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sorry! Please try again latter'
-            ], 400);
-        } else {
-            $order = Order::create([
-                'service' => $request->service,
-                'cart' => $request->cart,
-                'user_id' => $request->user()->id,
-                'payment_type' => $request->payment_type,
-                'status' => 'waiting'
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'order berhasil',
-                'data' => $order
-            ]);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'order berhasil',
+            'data' => $order
+        ]);
     }
 
     public function upload(Request $request, $id)

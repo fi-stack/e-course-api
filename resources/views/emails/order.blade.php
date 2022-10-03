@@ -21,7 +21,7 @@
     <hr />
     <div>Payment</div>
     <div>{{ $data['payment_type'] }}</div>
-    <div>silahkan lakukan pembayaran dan unggah bukti pembayaran dengan klik <a href="http://localhost:3002/transactions">disini</a></div>
+    <div>silahkan lakukan pembayaran sebelum <b>{{ $data['expired_at'] }}</b> dan unggah bukti pembayaran dengan klik <a href="http://localhost:3002/transactions">disini</a></div>
 </body>
 
 </html>

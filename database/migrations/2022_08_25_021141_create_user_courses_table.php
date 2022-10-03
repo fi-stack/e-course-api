@@ -17,7 +17,6 @@ class CreateUserCoursesTable extends Migration
             $table->id();
             $table->foreignId('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreignId('course_id')->references('id')->on('courses')->onDelete('cascade');
-            $table->integer('progress')->default(0);
             $table->boolean('is_completed')->default(false);
             $table->timestamps();
         });

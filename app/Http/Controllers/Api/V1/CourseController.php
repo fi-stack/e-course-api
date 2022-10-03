@@ -28,7 +28,7 @@ class CourseController extends Controller
     {
         $course = Course::where('id', $id)->select('id')
             ->with(['userCourses' => function ($query) use ($request) {
-                $query->select('id', 'user_id', 'course_id', 'progress')->where('user_id', $request->user()->id)->get();
+                $query->select('id', 'user_id', 'course_id')->where('user_id', $request->user()->id)->get();
             }])
             ->with(['molecules' => function ($query) use ($request) {
                 $query->select('id', 'course_id', 'ordinal', 'name')
